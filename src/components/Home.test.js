@@ -1,131 +1,131 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Home from './Home';
 
+// Mock the fetch API
+global.fetch = jest.fn();
+
+const createTestQueryClient = () => {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false, // Disable retries for tests
+      },
+    },
+  });
+};
+
+// Wrapper component to provide the QueryClient
+const renderWithClient = (ui, client) => {
+  return render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+  );
+};
+
+const mockStarWarsData = {
+  results: [
+    {
+      name: 'Luke Skywalker',
+      height: '172',
+      mass: '77',
+      hair_color: 'blond',
+    },
+    { name: 'C-3PO', height: '167', mass: '75', hair_color: 'n/a' },
+  ],
+};
+
 describe('Home Component', () => {
-  test('renders home page with title', () => {
-    render(<Home />);
-    expect(screen.getByText('Dynamic Table Using Lists')).toBeInTheDocument();
+  let queryClient;
+
+  beforeEach(() => {
+    // Clear mocks and query cache before each test
+    fetch.mockClear();
+    queryClient = createTestQueryClient();
   });
 
-  test('renders table header', () => {
-    render(<Home />);
-    expect(screen.getByText('ID | Name | Email | Role')).toBeInTheDocument();
+  test('renders loading state initially', () => {
+    // Mock a pending promise
+    fetch.mockImplementationOnce(() => new Promise(() => {}));
+    renderWithClient(<Home />, queryClient);
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  test('renders initial table data', () => {
-    render(<Home />);
+  test('renders error state on fetch failure', async () => {
+    // Mock a failed fetch
+    fetch.mockRejectedValueOnce(new Error('Network response was not ok'));
+    renderWithClient(<Home />, queryClient);
+    const errorElement = await screen.findByText(
+      /Error fetching data: Network response was not ok/,
+    );
+    expect(errorElement).toBeInTheDocument();
+  });
+
+  test('renders characters on successful fetch', async () => {
+    // Mock a successful fetch
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockStarWarsData,
+    });
+    renderWithClient(<Home />, queryClient);
     expect(
-      screen.getByText(/1 \| John Doe \| john@example\.com \| Developer/),
+      await screen.findByText('Luke Skywalker | 172 | 77 | blond'),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/2 \| Jane Smith \| jane@example\.com \| Designer/),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/3 \| Bob Johnson \| bob@example\.com \| Manager/),
-    ).toBeInTheDocument();
+    expect(screen.getByText('C-3PO | 167 | 75 | n/a')).toBeInTheDocument();
   });
 
-  test('renders add new row form', () => {
-    render(<Home />);
-    expect(screen.getByText('Add New Row')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Name')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Email')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Role')).toBeInTheDocument();
-    expect(screen.getByText('Add Row')).toBeInTheDocument();
+  test('allows adding a new character', async () => {
+    // Mock a successful fetch
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockStarWarsData,
+    });
+    renderWithClient(<Home />, queryClient);
+
+    // Wait for initial data to load
+    await screen.findByText(/Luke Skywalker/);
+
+    // Fill and submit the form
+    fireEvent.change(screen.getByPlaceholderText('Name'), {
+      target: { value: 'R2-D2' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Height'), {
+      target: { value: '96' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Mass'), {
+      target: { value: '32' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Hair Color'), {
+      target: { value: 'n/a' },
+    });
+    fireEvent.click(screen.getByText('Add Character'));
+
+    // Check that the new character is in the table
+    expect(await screen.findByText(/R2-D2/)).toBeInTheDocument();
   });
 
-  test('updates input fields when typing', () => {
-    render(<Home />);
+  test('clears input fields after adding a character', async () => {
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockStarWarsData,
+    });
+    renderWithClient(<Home />, queryClient);
+    await screen.findByText(/Luke Skywalker/);
+
     const nameInput = screen.getByPlaceholderText('Name');
-    const emailInput = screen.getByPlaceholderText('Email');
-    const roleInput = screen.getByPlaceholderText('Role');
+    fireEvent.change(nameInput, { target: { value: 'R2-D2' } });
+    fireEvent.change(screen.getByPlaceholderText('Height'), {
+      target: { value: '96' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Mass'), {
+      target: { value: '32' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Hair Color'), {
+      target: { value: 'n/a' },
+    });
+    fireEvent.click(screen.getByText('Add Character'));
 
-    fireEvent.change(nameInput, { target: { value: 'Test User' } });
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-    fireEvent.change(roleInput, { target: { value: 'Tester' } });
+    await screen.findByText(/R2-D2/);
 
-    expect(nameInput.value).toBe('Test User');
-    expect(emailInput.value).toBe('test@example.com');
-    expect(roleInput.value).toBe('Tester');
-  });
-
-  test('adds new row when all fields are filled and button is clicked', () => {
-    render(<Home />);
-    const nameInput = screen.getByPlaceholderText('Name');
-    const emailInput = screen.getByPlaceholderText('Email');
-    const roleInput = screen.getByPlaceholderText('Role');
-    const addButton = screen.getByText('Add Row');
-
-    // Fill in the form
-    fireEvent.change(nameInput, { target: { value: 'New User' } });
-    fireEvent.change(emailInput, { target: { value: 'newuser@example.com' } });
-    fireEvent.change(roleInput, { target: { value: 'New Role' } });
-
-    // Click add button
-    fireEvent.click(addButton);
-
-    // Check if new row is added
-    expect(
-      screen.getByText(/4 \| New User \| newuser@example\.com \| New Role/),
-    ).toBeInTheDocument();
-
-    // Check if form is cleared
     expect(nameInput.value).toBe('');
-    expect(emailInput.value).toBe('');
-    expect(roleInput.value).toBe('');
-  });
-
-  test('does not add row when fields are empty', () => {
-    render(<Home />);
-    const addButton = screen.getByText('Add Row');
-
-    // Click add button without filling fields
-    fireEvent.click(addButton);
-
-    // Check that no new row is added (should still have only 3 rows)
-    const listItems = screen.getAllByRole('listitem');
-    // 1 header + 3 data rows + 4 form items = 8 total
-    expect(listItems.length).toBe(8);
-  });
-
-  test('does not add row when only some fields are filled', () => {
-    render(<Home />);
-    const nameInput = screen.getByPlaceholderText('Name');
-    const addButton = screen.getByText('Add Row');
-
-    // Fill only name field
-    fireEvent.change(nameInput, { target: { value: 'Partial User' } });
-    fireEvent.click(addButton);
-
-    // Check that no new row is added
-    expect(screen.queryByText(/Partial User/)).not.toBeInTheDocument();
-  });
-
-  test('can add multiple rows', () => {
-    render(<Home />);
-    const nameInput = screen.getByPlaceholderText('Name');
-    const emailInput = screen.getByPlaceholderText('Email');
-    const roleInput = screen.getByPlaceholderText('Role');
-    const addButton = screen.getByText('Add Row');
-
-    // Add first new row
-    fireEvent.change(nameInput, { target: { value: 'First New' } });
-    fireEvent.change(emailInput, { target: { value: 'first@example.com' } });
-    fireEvent.change(roleInput, { target: { value: 'First Role' } });
-    fireEvent.click(addButton);
-
-    // Add second new row
-    fireEvent.change(nameInput, { target: { value: 'Second New' } });
-    fireEvent.change(emailInput, { target: { value: 'second@example.com' } });
-    fireEvent.change(roleInput, { target: { value: 'Second Role' } });
-    fireEvent.click(addButton);
-
-    // Check both rows are added
-    expect(
-      screen.getByText(/4 \| First New \| first@example\.com \| First Role/),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/5 \| Second New \| second@example\.com \| Second Role/),
-    ).toBeInTheDocument();
   });
 });

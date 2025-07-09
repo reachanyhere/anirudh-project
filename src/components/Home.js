@@ -1,18 +1,34 @@
-import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import './Home.css';
 
-const Home = () => {
-  const [tableData, setTableData] = useState([
-    { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Developer' },
-    { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'Designer' },
-    { id: 3, name: 'Bob Johnson', email: 'bob@example.com', role: 'Manager' },
-  ]);
+const fetchStarWarsPeople = async () => {
+  const res = await fetch('https://swapi.py4e.com/api/people/');
+  if (!res.ok) {
+    throw new Error('Network response was not ok');
+  }
+  return res.json();
+};
 
+const Home = () => {
+  const { data, error, isLoading } = useQuery({
+    queryKey: ['starWarsPeople'],
+    queryFn: fetchStarWarsPeople,
+  });
+
+  const [tableData, setTableData] = useState([]);
   const [newRow, setNewRow] = useState({
     name: '',
-    email: '',
-    role: '',
+    height: '',
+    mass: '',
+    hair_color: '',
   });
+
+  useEffect(() => {
+    if (data?.results) {
+      setTableData(data.results);
+    }
+  }, [data]);
 
   const handleInputChange = (field, value) => {
     setNewRow((prev) => ({
@@ -22,36 +38,39 @@ const Home = () => {
   };
 
   const addNewRow = () => {
-    if (newRow.name && newRow.email && newRow.role) {
-      setTableData((prev) => [
-        ...prev,
-        {
-          id: prev.length + 1,
-          ...newRow,
-        },
-      ]);
-      setNewRow({ name: '', email: '', role: '' });
+    if (newRow.name && newRow.height && newRow.mass && newRow.hair_color) {
+      setTableData((prev) => [...prev, newRow]);
+      setNewRow({ name: '', height: '', mass: '', hair_color: '' });
     }
   };
 
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error fetching data: {error.message}</div>;
+  }
+
   return (
     <div className="table-container">
-      <h2>Dynamic Table Using Lists</h2>
+      <h2>Star Wars Characters</h2>
 
       <ul className="table-header">
-        <li>ID | Name | Email | Role</li>
+        <li>Name | Height | Mass | Hair Color</li>
       </ul>
 
       <ol className="table-body">
-        {tableData.map((row) => (
-          <li key={row.id}>
-            {row.id} | {row.name} | {row.email} | {row.role}
+        {tableData.map((person, index) => (
+          <li key={person.name + index}>
+            {person.name} | {person.height} | {person.mass} |{' '}
+            {person.hair_color}
           </li>
         ))}
       </ol>
 
       <div className="form-section">
-        <h3>Add New Row</h3>
+        <h3>Add New Character</h3>
         <ul className="form-list">
           <li>
             <input
@@ -63,23 +82,31 @@ const Home = () => {
           </li>
           <li>
             <input
-              type="email"
-              placeholder="Email"
-              value={newRow.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
+              type="text"
+              placeholder="Height"
+              value={newRow.height}
+              onChange={(e) => handleInputChange('height', e.target.value)}
             />
           </li>
           <li>
             <input
               type="text"
-              placeholder="Role"
-              value={newRow.role}
-              onChange={(e) => handleInputChange('role', e.target.value)}
+              placeholder="Mass"
+              value={newRow.mass}
+              onChange={(e) => handleInputChange('mass', e.target.value)}
+            />
+          </li>
+          <li>
+            <input
+              type="text"
+              placeholder="Hair Color"
+              value={newRow.hair_color}
+              onChange={(e) => handleInputChange('hair_color', e.target.value)}
             />
           </li>
           <li>
             <button className="add-button" onClick={addNewRow}>
-              Add Row
+              Add Character
             </button>
           </li>
         </ul>
