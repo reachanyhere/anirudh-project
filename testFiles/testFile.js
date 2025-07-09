@@ -167,14 +167,3 @@ if (require.main === module) {
     console.log("User info:", user.getFullInfo());
     console.log("Is adult:", user.isAdult());
 }
-
-// Full file path for testing in Prompt
-
-
-// calculateAverage([1, 2, 3, 4, 5]); // Should return 3
-
-const numbers = [1, 2, 3, 4, 5];
-console.log("Average of [1, 2, 3, 4, 5] =", calculateAverage(numbers));
-
-// Test string utility functions
-const testString = "hello world";

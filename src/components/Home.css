@@ -1,0 +1,42 @@
+.table-container {
+  padding: 20px;
+}
+
+.table-header {
+  list-style: none;
+  padding: 10px;
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+
+.table-body {
+  list-style: decimal;
+  padding-left: 20px;
+}
+
+.table-body li {
+  padding: 5px 0;
+}
+
+.form-section {
+  margin-top: 20px;
+}
+
+.form-list {
+  list-style: none;
+  padding: 0;
+}
+
+.form-list li {
+  margin-bottom: 10px;
+}
+
+.form-list input {
+  padding: 5px;
+  margin-right: 10px;
+}
+
+.add-button {
+  padding: 5px 15px;
+  cursor: pointer;
+}
